@@ -5,18 +5,19 @@
 
 import { spawn } from 'child_process';
 import ytdl from 'ytdl-core';
+import ffmpegPath from "ffmpeg-static";
 
 // YouTube video ID or URL
-const ref = 'GDGVg3Yp8U8';
+const ref = 'GDGVg3Yp8U8'; // (good song)
 
 // Start audio and video streams
 const audio = ytdl(ref, { filter: 'audioonly', quality: 'highestaudio' });
 const video = ytdl(ref, { filter: 'videoonly', quality: 'highestvideo' });
 
 // Start ffmpeg process
-const ffmpeg = spawn('ffmpeg', [
+const ffmpeg = spawn(ffmpegPath, [
 	// Remove ffmpeg's console spamming
-	'-log_level', '0', '-hide_banner',
+	'-loglevel', '0', '-hide_banner',
 
 	// Input files
 	'-i', 'pipe:3',
@@ -35,7 +36,7 @@ const ffmpeg = spawn('ffmpeg', [
 	windowsHide: true,
 	stdio: [
 		// Ignore the standard streams (0, 1, 2)
-		'ignore', 'ignore', 'ignore',
+		'ignore', 'ignore', 'inherit',
 
 		// Use pipes 3, 4, and 5
 		'pipe', 'pipe', 'pipe'

@@ -1,4 +1,5 @@
 import { spawn } from 'child_process';
+import ffmpegPath from "ffmpeg-static";
 
 /**
  * Mimics Python's `min`.
@@ -29,7 +30,8 @@ export const internalServerErrorHandler = (res, errorType) =>
  * @returns The `ffmpeg` child process object
  */
 export const combineStreams = (audio, video, destination) => {
-	const ffmpeg = spawn('ffmpeg', [
+	const ffmpeg = spawn(ffmpegPath, [
+		'-loglevel', '0', '-hide_banner',
 		'-i', 'pipe:3',
 		'-i', 'pipe:4',
 		'-c:v', 'copy',
