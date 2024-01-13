@@ -1,2 +1,2 @@
 [ ! -d node_modules ] && npm i
-node . 3000
+node . $1
