@@ -76,12 +76,8 @@ app.get('/yt/stream/audio/:idOrUrl', async (req, res) => {
 /**
  * return search results for `query`
  */
-app.get('/yt/search', (req, res) => {
-	const query = req.query.q ?? req.query.query;
-	if (!query) {
-		res.status(400).send('Parameter `query` or `q` required.\n');
-		return;
-	}
+app.get('/yt/search/:query', (req, res) => {
+	const { query } = req.params;
 
 	const type = req.query.t ?? req.query.type;
 	if (type && !['video', 'channel', 'playlist', 'movie'].includes(type)) {
