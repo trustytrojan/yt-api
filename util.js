@@ -1,6 +1,3 @@
-import { spawn } from 'child_process';
-import ffmpegPath from "ffmpeg-static";
-
 /**
  * Mimics Python's `min`.
  * @template T
@@ -22,27 +19,3 @@ export const internalServerErrorHandler = (res, errorType) =>
 		console.error(`${errorType} error: ${error}`);
 		res.sendStatus(500);
 	};
-
-/**
- * @param {NodeJS.ReadableStream} audio An audio stream with a Matroska-compatible codec
- * @param {NodeJS.ReadableStream} video A video stream with a Matroska-compatible codec
- * @param {NodeJS.WritableStream} destination Destination stream
- * @returns The `ffmpeg` child process object
- */
-export const combineStreams = (audio, video, destination) => {
-	const ffmpeg = spawn(ffmpegPath, [
-		'-loglevel', '0', '-hide_banner',
-		'-i', 'pipe:3',
-		'-i', 'pipe:4',
-		'-c:v', 'copy',
-		'-c:a', 'copy',
-		'-f', 'matroska', 'pipe:5'
-	], {
-		windowsHide: true,
-		stdio: ['ignore', 'ignore', 'ignore', 'pipe', 'pipe', 'pipe'],
-	});
-	audio.pipe(ffmpeg.stdio[3]);
-	video.pipe(ffmpeg.stdio[4]);
-	ffmpeg.stdio[5].pipe(destination);
-	return ffmpeg;
-};
