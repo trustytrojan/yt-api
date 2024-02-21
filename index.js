@@ -11,7 +11,6 @@ if (argv.length !== 3) {
 }
 
 const port = Number.parseInt(argv[2]);
-
 const app = express();
 
 /** 
@@ -22,6 +21,9 @@ const app = express();
 app.get('/yt/stream/:idOrUrl', async (req, res) => {
 	const { idOrUrl } = req.params;
 	const container = req.query.c ?? req.query.container ?? 'matroska';
+
+	if (typeof container !== 'string')
+		res.sendStatus(400);
 
 	const audio = ytdl(idOrUrl, { filter: 'audioonly', quality: 'highestaudio' })
 		.on('error', internalServerErrorHandler(res, 'ytdl audio'))
@@ -45,6 +47,7 @@ app.get('/yt/stream/:idOrUrl', async (req, res) => {
 		'-metadata', `title=${videoDetails.title}`,
 		'-metadata', `artist=${videoDetails.ownerChannelName}`,
 		'-metadata', `date=${videoDetails.publishDate.substring(0, 10)}`,
+		'-metadata', `duration=${videoDetails.lengthSeconds}`,
 		'-c:v', 'copy',
 		'-c:a', 'copy',
 		'-f', container,

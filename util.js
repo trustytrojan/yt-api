@@ -12,7 +12,7 @@ export const min = (arr, key) =>
 /**
  * @param {import('express').Response} res 
  * @param {string} errorType 
- * @returns An error handler that logs the error and sends status 500 to the client.
+ * @returns {(_: Error) => void} An error handler that logs the error and sends status 500 to the client.
  */
 export const internalServerErrorHandler = (res, errorType) =>
 	error => {
