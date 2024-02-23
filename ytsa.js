@@ -19,16 +19,19 @@ const minifyResultItems = (result) => {
 
 /**
  * @param {string} query 
- * @param {{ withPlaylists: boolean, limit: number, type: 'video' | 'channel' | 'playlist' | 'movie' }} 
+ * @param {boolean} withPlaylists
+ * @param {number} limit
+ * @param {'video' | 'channel' | 'playlist' | 'movie'} type
  */
-export const search = (query, { withPlaylists, limit, type } = {}) =>
+export const search = (query, withPlaylists, limit, type) =>
 	GetListByKeyword(query, withPlaylists, limit, [{ type }])
 		.then(minifyResultItems);
 
 /**
  * @param nextPageObject 
- * @param {{ withPlaylists: boolean, limit: number }} 
+ * @param {boolean} withPlaylists
+ * @param {number} limit
  */
-export const nextPage = (nextPageObject, { withPlaylists, limit } = {}) =>
+export const nextPage = (nextPageObject, withPlaylists, limit) =>
 	NextPage(nextPageObject, withPlaylists, limit)
 		.then(minifyResultItems);
