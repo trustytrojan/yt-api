@@ -1,9 +1,12 @@
 import express from 'express';
 import { argv, exit } from 'process';
-import { query } from 'express-validator';
+import ytdl from '@distube/ytdl-core';
 
 import * as ytsa from './ytsa.js';
-import { validateInputs, getHighestQualityAVStream, getAudioOnlyOrVideoOnlyStream, containerMap } from './util.js';
+import { validateInputs } from './util.js';
+import * as chooseFormat from './chooseFormat.js';
+import * as ffmpegUtils from './ffmpeg.js';
+import { validate } from './ev.js';
 
 if (argv.length !== 3) {
 	console.error('Required args: <port>');
@@ -13,75 +16,79 @@ if (argv.length !== 3) {
 const port = Number.parseInt(argv[2]);
 const app = express();
 
-// Express middleware functions that validate query parameters
-const validate = Object.freeze({
-	container: query(['c', 'container'], "must be one of ('matroska', 'webm')").optional().isIn(['matroska', 'webm']),
-	lowestQuality: query(['lq', 'lowestQuality'], 'must be a boolean').optional().isBoolean(),
-	bitrate: query(['br', 'bitrate'], 'must be an integer').optional().isInt(),
-	limit: query(['l', 'limit'], 'must be an integer').isInt(),
-	withPlaylists: query(['wp', 'withPlaylists'], 'must be a boolean').isBoolean()
-});
+/**
+ * @param {import('express').Request} req
+ * @param {import('express').Response} res
+ * @param {import('./chooseFormat.js').ChooseFormatFunction} chooseFormatFunc
+ */
+const ytStream = async ({ params: { idOrUrl, av }, query }, res, chooseFormatFunc) => {
+	if (!query.container)
+		query.container = 'matroska';
+	const { formats, videoDetails } = await ytdl.getInfo(idOrUrl);
+	const chosenFormats = chooseFormatFunc(formats, query, av);
+	const urls = chosenFormats.map(f => f.url);
+	const ffmpeg = ffmpegUtils.spawn(
+		ffmpegUtils.makeArgs(urls, videoDetails, query.container),
+		ffmpegUtils.makeSpawnOptions(videoDetails, 0)
+	);
+	if (!ffmpeg.stdout)
+		throw new Error('ffmpeg.stdout is null');
+	// if the client disconnects, kill ffmpeg
+	res.on('close', () => ffmpeg.kill('SIGKILL'));
+	return ffmpeg.stdout;
+};
 
 app.get('/yt/stream/:idOrUrl',
-	validate.container, validateInputs,
-	(req, res) => getHighestQualityAVStream(req).then(({ stream }) => stream.pipe(res))
+	validate.dl,
+	validate.container,
+	validate.lowestQuality,
+	validate.audioBitrate,
+	validate.videoBitrate,
+	validateInputs,
+	async (req, res) => {
+		let stream;
+		try { stream = await ytStream(req, res, chooseFormat.audioAndVideo); }
+		catch (err) {
+			console.error(err);
+			return res.status(500).send(err.message);
+		}
+		if (req.query.dl)
+			res.setHeader('Content-Disposition', 'attachment');
+		stream.pipe(res);
+	}
 );
 
-app.get('/yt/dl/:idOrUrl',
-	validate.container, validateInputs,
-	(req, res) =>
-		getHighestQualityAVStream(req).then(({ videoDetails: { ownerChannelName, title }, stream, container }) => {
-			res.setHeader('Content-Disposition', `attachment; filename=${ownerChannelName} - ${title}.${containerMap[container]}`);
-			stream.pipe(res);
-		})
-);
-
-app.get('/yt/stream/audio/:idOrUrl',
-	validate.lowestQuality, validate.bitrate, validateInputs,
-	(req, res) => getAudioOnlyOrVideoOnlyStream('audio', req).then(({ stream }) => stream.pipe(res))
-);
-
-app.get('/yt/dl/audio/:idOrUrl',
-	validate.lowestQuality, validate.bitrate, validateInputs,
-	(req, res) =>
-		getAudioOnlyOrVideoOnlyStream('audio', req).then(({ videoDetails: { ownerChannelName, title }, stream, container }) => {
-			res.setHeader('Content-Disposition', `attachment; filename=${ownerChannelName} - ${title}.${containerMap[container]}`);
-			stream.pipe(res);
-		})
-);
-
-app.get('/yt/stream/video/:idOrUrl',
-	validate.lowestQuality, validate.bitrate, validateInputs,
-	(req, res) => getAudioOnlyOrVideoOnlyStream('video', req).then(({ stream }) => stream.pipe(res))
-);
-
-app.get('/yt/dl/video/:idOrUrl',
-	validate.lowestQuality, validate.bitrate, validateInputs,
-	(req, res) =>
-		getAudioOnlyOrVideoOnlyStream('video', req).then(({ videoDetails: { ownerChannelName, title }, stream, container }) => {
-			res.setHeader('Content-Disposition', `attachment; filename=${ownerChannelName} - ${title}.${containerMap[container]}`);
-			stream.pipe(res);
-		})
+app.get('/yt/stream/:av/:idOrUrl',
+	validate.dl,
+	validate.av,
+	validate.container,
+	validate.lowestQuality,
+	validate.bitrate,
+	validateInputs,
+	async (req, res) => {
+		let stream;
+		try { stream = await ytStream(req, res, chooseFormat.audioOrVideo); }
+		catch (err) {
+			console.error(err);
+			return res.status(500).send(err.message);
+		}
+		if (req.query.dl)
+			res.setHeader('Content-Disposition', 'attachment');
+		stream.pipe(res);
+	}
 );
 
 app.get('/yt/search/:query',
-	query(['t', 'type'], "must be one of: 'video', 'channel', 'playlist', 'movie'").optional(),
-	validate.limit, validate.withPlaylists, validateInputs,
-	({ query, params }, res) => {
-		const type = query.t ?? query.type;
-		const withPlaylists = query.wp ?? query.withPlaylists;
-		const limit = Number.parseInt(query.l ?? query.limit);
-		ytsa.search(params.query, withPlaylists, limit, type).then(res.json.bind(res));
+	validate.type, validate.limit, validate.withPlaylists, validateInputs,
+	({ query: { type, withPlaylists, limit }, params: { query } }, res) => {
+		ytsa.search(query, withPlaylists, limit, type).then(res.json.bind(res));
 	}
 );
 
 app.post('/yt/search/nextpage',
 	express.json(), validate.limit, validate.withPlaylists, validateInputs,
-	({ query, body }, res) => {
-		const limit = Number.parseInt(query.l ?? query.limit);
-		const withPlaylists = Boolean(query.wp ?? query.withPlaylists);
-		ytsa.nextPage(body, withPlaylists, limit).then(res.json.bind(res));
-	}
+	({ query: { withPlaylists, limit }, body }, res) =>
+		ytsa.nextPage(body, withPlaylists, limit).then(res.json.bind(res))
 );
 
 app.listen(port, () => console.log(`Listening on ${port}`));
