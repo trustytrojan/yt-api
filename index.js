@@ -1,6 +1,7 @@
 import express from 'express';
 import { argv, exit } from 'process';
 import ytdl from '@distube/ytdl-core';
+import cors from 'cors';
 
 import * as ytsa from './ytsa.js';
 import { validateInputs } from './util.js';
@@ -15,6 +16,8 @@ if (argv.length !== 3) {
 
 const port = Number.parseInt(argv[2]);
 const app = express();
+
+app.use(cors());
 
 /**
  * @param {import('express').Request} req
