@@ -10,7 +10,6 @@ export const makeArgs = (inputs, videoDetails, container) => {
 	const _inputs = [];
 	inputs.forEach(i => _inputs.push('-i', i));
 	return [
-		// '-loglevel', '0',
 		'-hide_banner',
 		'-reconnect', '1',
 		'-reconnect_streamed', '1',
