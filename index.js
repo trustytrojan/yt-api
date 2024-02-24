@@ -84,13 +84,23 @@ app.get('/yt/stream/:av/:idOrUrl',
 app.get('/yt/search/:query',
 	validate.type, validate.limit, validate.withPlaylists, validateInputs,
 	({ query: { type, withPlaylists, limit }, params: { query } }, res) =>
-		ytsa.search(query, withPlaylists, limit, type).then(res.json.bind(res))
+		ytsa.search(query, withPlaylists, limit, type)
+			.then(res.json.bind(res))
+			.catch(err => {
+				if (err.message.includes('status code 4'))
+					res.sendStatus(400);
+			})
 );
 
 app.post('/yt/search/nextpage',
 	express.json(), validate.limit, validate.withPlaylists, validateInputs,
 	({ query: { withPlaylists, limit }, body }, res) =>
-		ytsa.nextPage(body, withPlaylists, limit).then(res.json.bind(res))
+		ytsa.nextPage(body, withPlaylists, limit)
+			.then(res.json.bind(res))
+			.catch(err => {
+				if (err.message.includes('status code 4'))
+					res.sendStatus(400);
+			})
 );
 
 app.listen(port, () => console.log(`Listening on ${port}`));
