@@ -83,9 +83,8 @@ app.get('/yt/stream/:av/:idOrUrl',
 
 app.get('/yt/search/:query',
 	validate.type, validate.limit, validate.withPlaylists, validateInputs,
-	({ query: { type, withPlaylists, limit }, params: { query } }, res) => {
-		ytsa.search(query, withPlaylists, limit, type).then(res.json.bind(res));
-	}
+	({ query: { type, withPlaylists, limit }, params: { query } }, res) =>
+		ytsa.search(query, withPlaylists, limit, type).then(res.json.bind(res))
 );
 
 app.post('/yt/search/nextpage',

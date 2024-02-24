@@ -5,7 +5,7 @@ const minifyVideoItem = (item) => {
 	delete item.thumbnail;
 	item.length = {
 		text: item.length.simpleText,
-		descriptiveText: item.length.accessibility.accessibilityData.label
+		descriptiveText: item.length.accessibility?.accessibilityData.label
 	};
 	delete item.shortBylineText;
 };
