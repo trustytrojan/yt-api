@@ -87,6 +87,7 @@ app.get('/yt/search/:query',
 		ytsa.search(query, withPlaylists, limit, type)
 			.then(res.json.bind(res))
 			.catch(err => {
+				// catch axios errors from youtube-search-api
 				if (err.message.includes('status code 4'))
 					res.sendStatus(400);
 			})
@@ -98,6 +99,7 @@ app.post('/yt/search/nextpage',
 		ytsa.nextPage(body, withPlaylists, limit)
 			.then(res.json.bind(res))
 			.catch(err => {
+				// catch axios errors from youtube-search-api
 				if (err.message.includes('status code 4'))
 					res.sendStatus(400);
 			})
