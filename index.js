@@ -81,6 +81,9 @@ app.get('/yt/stream/:av/:idOrUrl',
 	}
 );
 
+app.get('/yt/info/:idOrUrl', ({ params: { idOrUrl } }, res) => ytdl.getInfo(idOrUrl).then(res.json.bind(res)));
+app.get('/yt/formats/:idOrUrl', ({ params: { idOrUrl } }, res) => ytdl.getInfo(idOrUrl).then(({ formats }) => res.json(formats)));
+
 app.get('/yt/search/:query',
 	validate.type, validate.limit, validate.withPlaylists, validateInputs,
 	({ query: { type, withPlaylists, limit }, params: { query } }, res) =>
