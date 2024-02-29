@@ -81,8 +81,25 @@ app.get('/yt/stream/:av/:idOrUrl',
 	}
 );
 
-app.get('/yt/info/:idOrUrl', ({ params: { idOrUrl } }, res) => ytdl.getInfo(idOrUrl).then(res.json.bind(res)));
-app.get('/yt/formats/:idOrUrl', ({ params: { idOrUrl } }, res) => ytdl.getInfo(idOrUrl).then(({ formats }) => res.json(formats)));
+app.get('/yt/info/:idOrUrl', ({ params: { idOrUrl } }, res) =>
+	ytdl.getInfo(idOrUrl)
+		.then(res.json.bind(res))
+		.catch(err => {
+			if (err.statusCode)
+				res.sendStatus(err.statusCode);
+			console.error(err);
+		})
+);
+
+app.get('/yt/formats/:idOrUrl', ({ params: { idOrUrl } }, res) =>
+	ytdl.getInfo(idOrUrl)
+		.then(({ formats }) => res.json(formats))
+		.catch(err => {
+			if (err.statusCode)
+				res.sendStatus(err.statusCode);
+			console.error(err);
+		})
+);
 
 app.get('/yt/search/:query',
 	validate.type, validate.limit, validate.withPlaylists, validateInputs,
