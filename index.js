@@ -1,44 +1,60 @@
-import express from 'express';
+// node
 import { argv, exit } from 'process';
+
+// npm
+import express from 'express';
 import ytdl from '@distube/ytdl-core';
 import cors from 'cors';
 
-import * as ytsa from './ytsa.js';
+// yt-api
+import * as yts from './search.js';
 import { validateInputs } from './util.js';
-import * as chooseFormat from './chooseFormat.js';
+import { audioAndVideo, audioOrVideo } from './chooseFormat.js';
 import * as ffmpegUtils from './ffmpeg.js';
 import { validate } from './ev.js';
 
-if (argv.length !== 3) {
+if (!argv[2]?.length) {
 	console.error('Required args: <port>');
 	exit(1);
 }
 
 const port = Number.parseInt(argv[2]);
 const app = express();
-
 app.use(cors());
+
+/** @type {Record<string, {formats: ytdl.videoFormat[], details: ytdl.MoreVideoDetails}>} */
+const infoCache = {};
+
+/**
+ * @param {string} idOrUrl 
+ */
+const getInfo = async (idOrUrl) => {
+	const id = ytdl.getVideoID(idOrUrl);
+	if (infoCache[id])
+		return infoCache[id];
+	const { player_response: { streamingData: { expiresInSeconds } }, formats, videoDetails: details } = await ytdl.getInfo(id);
+	setTimeout(() => delete infoCache[id], expiresInSeconds * 1e3);
+	return infoCache[id] = { formats, details };
+};
 
 /**
  * @param {import('express').Request} req
  * @param {import('express').Response} res
- * @param {import('./chooseFormat.js').ChooseFormatFunction} chooseFormatFunc
  */
-const ytStream = async ({ params: { idOrUrl, av }, query }, res, chooseFormatFunc) => {
-	if (!query.container)
-		query.container = 'matroska';
-	const { formats, videoDetails } = await ytdl.getInfo(idOrUrl);
-	const chosenFormats = chooseFormatFunc(formats, query, av);
+const ytStream = async ({ params: { idOrUrl, av }, query }, res) => {
+	if (!query.container) query.container = 'matroska';
+	if (query.dl) res.setHeader('Content-Disposition', 'attachment');
+	const { formats, details } = await getInfo(idOrUrl);
+	const chosenFormats = (av ? audioOrVideo : audioAndVideo)(formats, query, av);
 	const urls = chosenFormats.map(f => f.url);
 	const ffmpeg = ffmpegUtils.spawn(
-		ffmpegUtils.makeArgs(urls, videoDetails, query.container),
-		ffmpegUtils.makeSpawnOptions(videoDetails, 0)
+		ffmpegUtils.makeArgs(urls, details, query.container),
+		ffmpegUtils.makeSpawnOptions(details, 0)
 	);
 	if (!ffmpeg.stdout)
-		throw new Error('ffmpeg.stdout is null');
-	// if the client disconnects, kill ffmpeg
+		return res.sendStatus(500);
 	res.on('close', () => ffmpeg.kill('SIGKILL'));
-	return ffmpeg.stdout;
+	ffmpeg.stdout.pipe(res);
 };
 
 app.get('/yt/stream/:idOrUrl',
@@ -48,17 +64,7 @@ app.get('/yt/stream/:idOrUrl',
 	validate.audioBitrate,
 	validate.videoBitrate,
 	validateInputs,
-	async (req, res) => {
-		let stream;
-		try { stream = await ytStream(req, res, chooseFormat.audioAndVideo); }
-		catch (err) {
-			console.error(err);
-			return res.status(500).send(err.message);
-		}
-		if (req.query.dl)
-			res.setHeader('Content-Disposition', 'attachment');
-		stream.pipe(res);
-	}
+	ytStream
 );
 
 app.get('/yt/stream/:av/:idOrUrl',
@@ -68,60 +74,44 @@ app.get('/yt/stream/:av/:idOrUrl',
 	validate.lowestQuality,
 	validate.bitrate,
 	validateInputs,
-	async (req, res) => {
-		let stream;
-		try { stream = await ytStream(req, res, chooseFormat.audioOrVideo); }
-		catch (err) {
-			console.error(err);
-			return res.status(500).send(err.message);
-		}
-		if (req.query.dl)
-			res.setHeader('Content-Disposition', 'attachment');
-		stream.pipe(res);
-	}
+	ytStream
 );
 
 app.get('/yt/info/:idOrUrl', ({ params: { idOrUrl } }, res) =>
-	ytdl.getInfo(idOrUrl)
+	getInfo(idOrUrl)
 		.then(res.json.bind(res))
 		.catch(err => {
+			console.error(err);
 			if (err.statusCode)
 				res.sendStatus(err.statusCode);
-			console.error(err);
-		})
-);
-
-app.get('/yt/formats/:idOrUrl', ({ params: { idOrUrl } }, res) =>
-	ytdl.getInfo(idOrUrl)
-		.then(({ formats }) => res.json(formats))
-		.catch(err => {
-			if (err.statusCode)
-				res.sendStatus(err.statusCode);
-			console.error(err);
 		})
 );
 
 app.get('/yt/search/:query',
-	validate.type, validate.limit, validate.withPlaylists, validateInputs,
-	({ query: { type, withPlaylists, limit }, params: { query } }, res) =>
-		ytsa.search(query, withPlaylists, limit, type)
+	validate.type,
+	validateInputs,
+	({ query: { type }, params: { query } }, res) =>
+		yts.search(query, type)
 			.then(res.json.bind(res))
 			.catch(err => {
-				// catch axios errors from youtube-search-api
-				if (err.message.includes('status code 4'))
-					res.sendStatus(400);
+				console.error(err);
+				res.sendStatus(500);
 			})
 );
 
 app.post('/yt/search/nextpage',
-	express.json(), validate.limit, validate.withPlaylists, validateInputs,
-	({ query: { withPlaylists, limit }, body }, res) =>
-		ytsa.nextPage(body, withPlaylists, limit)
+	express.json(),
+	validateInputs,
+	({ body }, res) =>
+		yts.nextPage(body)
 			.then(res.json.bind(res))
 			.catch(err => {
-				// catch axios errors from youtube-search-api
-				if (err.message.includes('status code 4'))
-					res.sendStatus(400);
+				if (typeof err === 'string')
+					res.status(400).send(err);
+				else {
+					console.error(err);
+					res.sendStatus(500);
+				}
 			})
 );
 
