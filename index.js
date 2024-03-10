@@ -1,5 +1,7 @@
 // node
 import { argv, exit } from 'process';
+import cp from 'child_process';
+import https from 'https';
 
 // npm
 import express from 'express';
@@ -8,10 +10,7 @@ import cors from 'cors';
 
 // yt-api
 import * as yts from './search.js';
-import { validateInputs } from './util.js';
-import { audioAndVideo, audioOrVideo } from './chooseFormat.js';
-import * as ffmpegUtils from './ffmpeg.js';
-import { validate } from './ev.js';
+import * as validate from './validate.js';
 
 if (!argv[2]?.length) {
 	console.error('Required args: <port>');
@@ -38,43 +37,80 @@ const getInfo = async (idOrUrl) => {
 };
 
 /**
- * @param {import('express').Request} req
- * @param {import('express').Response} res
+ * Guarantees to return either one format, or two formats in the order `[audio, video]`.
+ * @param {ytdl.videoFormat[]} formats 
+ * @param {string[]} [itags] 
  */
-const ytStream = async ({ params: { idOrUrl, av }, query }, res) => {
-	if (!query.container) query.container = 'matroska';
-	if (query.dl) res.setHeader('Content-Disposition', 'attachment');
-	const { formats, details } = await getInfo(idOrUrl);
-	const chosenFormats = (av ? audioOrVideo : audioAndVideo)(formats, query, av);
-	const urls = chosenFormats.map(f => f.url);
-	const ffmpeg = ffmpegUtils.spawn(
-		ffmpegUtils.makeArgs(urls, details, query.container),
-		ffmpegUtils.makeSpawnOptions(details, 0)
+const itagsToFormats = (formats, itags) => {
+	if (!itags)
+		return [
+			ytdl.chooseFormat(formats, { filter: 'audioonly', quality: 'highestaudio' }),
+			ytdl.chooseFormat(formats, { filter: 'videoonly', quality: 'highestvideo' })
+		];
+	formats = formats.filter(f => itags.includes(String(f.itag)));
+	if (itags.length === 1)
+		return formats;
+	return [
+		formats.filter(f => f.hasAudio && !f.hasVideo)[0],
+		formats.filter(f => !f.hasAudio && f.hasVideo)[0]
+	];
+};
+
+/**
+ * @param {import('express').Response} res
+ * @param {import('@distube/ytdl-core').MoreVideoDetails} details 
+ * @param {string} input1
+ * @param {string} [input2]
+ */
+const streamFfmpegTo = (res, details, input1, input2) => {
+	const ffmpeg = spawn('ffmpeg',
+		[
+			'-hide_banner',
+			'-thread_queue_size', '2000',
+			'-i', '-',
+			...(input2 ? ['-i', 'pipe:3'] : []),
+			'-metadata', `title=${details.title}`,
+			'-metadata', `artist=${details.ownerChannelName}`,
+			'-metadata', `date=${details.publishDate.substring(0, 10)}`,
+			'-metadata', `duration=${details.lengthSeconds}`,
+			'-c', 'copy',
+			'-f', 'matroska',
+			'-'
+		],
+		{
+			// timeout may have to be lengthened, some videos may take too long to mux
+			// we can also deny the request if that happens
+			timeout: Number.parseInt(details.lengthSeconds) * 1e3,
+			stdio: ['pipe', 'pipe', 'inherit', ...(input2 ? ['pipe'] : [])],
+			// SIGKILL prevents zombie ffmpeg processes
+			killSignal: 'SIGKILL'
+		}
 	);
-	if (!ffmpeg.stdout)
-		return res.sendStatus(500);
-	res.on('close', () => ffmpeg.kill('SIGKILL'));
+	https.get(input1, res => res.pipe(ffmpeg.stdin));
+	if (input2) https.get(input2, res => res.pipe(ffmpeg.stdio[3]));
 	ffmpeg.stdout.pipe(res);
 };
 
 app.get('/yt/stream/:idOrUrl',
-	validate.dl,
-	validate.container,
-	validate.lowestQuality,
-	validate.audioBitrate,
-	validate.videoBitrate,
-	validateInputs,
-	ytStream
+	validate.itags,
+	validate.checkForErrors,
+	async ({ params: { idOrUrl }, query: { itags } }, res) => {
+		const { formats, details } = await getInfo(idOrUrl);
+		const urls = itagsToFormats(formats, itags).map(f => f.url);
+		streamFfmpegTo(res, details, ...urls);
+	}
 );
 
-app.get('/yt/stream/:av/:idOrUrl',
-	validate.dl,
-	validate.av,
-	validate.container,
-	validate.lowestQuality,
-	validate.bitrate,
-	validateInputs,
-	ytStream
+app.get('/yt/dl/:idOrUrl',
+	validate.itags,
+	validate.checkForErrors,
+	async ({ params: { idOrUrl }, query: { itags } }, res) => {
+		const { formats, details } = await getInfo(idOrUrl);
+		const urls = itagsToFormats(formats, itags).map(f => f.url);
+		// res.setHeader('Content-Type', 'video/mkv');
+		res.setHeader('Content-Disposition', `attachment; filename="${details.ownerChannelName} - ${details.title}.mkv"`);
+		streamFfmpegTo(res, details, ...urls);
+	}
 );
 
 app.get('/yt/info/:idOrUrl', ({ params: { idOrUrl } }, res) =>
@@ -87,11 +123,12 @@ app.get('/yt/info/:idOrUrl', ({ params: { idOrUrl } }, res) =>
 		})
 );
 
-app.get('/yt/search/:query',
+app.get('/yt/search',
+	validate.q,
 	validate.type,
-	validateInputs,
-	({ query: { type }, params: { query } }, res) =>
-		yts.search(query, type)
+	validate.checkForErrors,
+	({ query: { type, q } }, res) =>
+		yts.search(q, type)
 			.then(res.json.bind(res))
 			.catch(err => {
 				console.error(err);
@@ -100,8 +137,11 @@ app.get('/yt/search/:query',
 );
 
 app.post('/yt/search/nextpage',
+	// please remember: the request MUST have 'Content-Type: application/json',
+	// otherwise express gives you a fucking empty object. great error indication.
 	express.json(),
-	validateInputs,
+	...validate.nextPageCtx,
+	validate.checkForErrors,
 	({ body }, res) =>
 		yts.nextPage(body)
 			.then(res.json.bind(res))
