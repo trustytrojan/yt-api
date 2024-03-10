@@ -1,3 +1,5 @@
+// code adapted from damonwonghv/youtube-search-api
+
 const baseUrl = `https://www.youtube.com`;
 
 /**
