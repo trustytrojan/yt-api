@@ -6,7 +6,7 @@ export const
 	// streaming params
 	itags = query('itags', 'must be a comma-separated list of 1 or 2 itags').optional().isString()
 		.customSanitizer(itags => itags.split(','))
-		.custom(itags => [0, 1, 2].includes(itags.length)),
+		.custom(itags => [0, 1, 2].includes(itags.length) && itags.every(n => parseInt(n))),
 
 	// searching params
 	q = query('q', 'search query is required').exists().isString(),
