@@ -93,8 +93,7 @@ app.get('/yt/dl/:idOrUrl',
 		const { formats, details } = await getInfo(idOrUrl);
 		const urls = itagsToFormats(formats, itags).map(f => f.url);
 		const ffmpeg = spawnFfmpeg(urls, details);
-		res.setHeader('Content-Type', 'video/mkv');
-		res.setHeader('Content-Disposition', `attachment; filename="${details.ownerChannelName} - ${details.title}.mkv"`);
+		res.setHeader('Content-Disposition', `attachment; filename="${details.title}.mkv"`);
 		ffmpeg.stdout.pipe(res);
 	}
 );
