@@ -28,7 +28,7 @@ app.get('/yt/dl/:idOrUrl',
 		const { formats, details } = await util.getInfo(idOrUrl);
 
 		// get stream urls
-		const urls = (itags.length
+		const urls = (itags?.length
 			? formats.filter(f => itags.includes(String(f.itag)))
 			: [
 				ytdl.chooseFormat(formats, { filter: 'audioonly', quality: 'highestaudio' }),
