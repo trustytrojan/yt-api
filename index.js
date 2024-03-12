@@ -1,5 +1,6 @@
 // node
 import { argv, exit } from 'process';
+import fs from 'fs';
 
 // npm
 import express from 'express';
@@ -9,7 +10,6 @@ import cors from 'cors';
 import * as yts from './search.js';
 import * as validate from './validate.js';
 import * as util from './util.js';
-import ytdl from '@distube/ytdl-core';
 
 if (!argv[2]?.length) {
 	console.error('Required args: <port>');
@@ -23,28 +23,32 @@ app.use(cors());
 app.get('/yt/dl/:idOrUrl',
 	validate.itags,
 	validate.checkForErrors,
-	async ({ params: { idOrUrl }, query: { itags } }, res) => {
-		// get video info
-		const { formats, details } = await util.getInfo(idOrUrl);
+	async ({ params: { idOrUrl }, query }, res) => {
+		// get video info and formats
+		let { formats, details } = await util.getInfo(idOrUrl);
+		formats = util.decideFormats(formats, query);
 
-		// get stream urls
-		const urls = (itags?.length
-			? formats.filter(f => itags.includes(String(f.itag)))
-			: [
-				ytdl.chooseFormat(formats, { filter: 'audioonly', quality: 'highestaudio' }),
-				ytdl.chooseFormat(formats, { filter: 'videoonly', quality: 'highestvideo' })
-			]
-		).map(f => f.url);
+		if (!formats.length)
+			return res.status(400).send('no formats found!\r\n');
 
-		if (!urls.length)
-			return res.status(400).send('no formats were found with the provided itags!\r\n');
+		// strip title of http-header-incompatible characters
+		const notAllowedInHeaders = /[^\t\x20-\x7e\x80-\xff]/g;
+		const strippedTitle = details.title.replaceAll(notAllowedInHeaders, '');
 
-		// set proper headers
-		res.setHeader('Content-Type', 'video/mkv');
-		res.setHeader('Content-Disposition', `attachment; filename="${details.title}.mkv"`);
+		let container;
+
+		// if formats contains only one audio format, use mp3
+		if (formats.length === 1 && formats[0].hasAudio && !formats[0].hasVideo) {
+			res.setHeader('Content-Type', 'audio/mp3');
+			res.setHeader('Content-Disposition', `attachment; filename="${strippedTitle}.mp3"`);
+			container = 'mp3';
+		} else {
+			res.setHeader('Content-Type', 'video/x-matroska');
+			res.setHeader('Content-Disposition', `attachment; filename="${strippedTitle}.mkv"`);
+		}
 
 		// start ffmpeg and begin streaming
-		const ffmpeg = util.spawnFfmpeg(urls, details);
+		const ffmpeg = util.spawnFfmpeg(formats.map(f => f.url), details, container);
 		ffmpeg.stdout.pipe(res);
 
 		// if the client closes the connection, kill ffmpeg to save resources

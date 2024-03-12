@@ -8,6 +8,7 @@ export const
 	itags = query('itags', 'must be a comma-separated list of 0 to 2 itags' + itagsNote).optional().isString()
 		.customSanitizer(itags => itags.split(','))
 		.custom(itags => [0, 1, 2].includes(itags.length) && itags.every(n => parseInt(n))),
+	only = query('only', "must be one of: 'audio', 'video'").optional().isIn(['audio', 'video']),
 
 	// search
 	q = query('q', 'search query is required').exists().isString(),
