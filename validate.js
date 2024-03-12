@@ -1,22 +1,25 @@
 import { query, body, validationResult } from 'express-validator';
 
-const nextPageWarning = '; must be from /yt/search';
+const nextPageNote = '; must be from /yt/search';
+const itagsNote = '; you can get itags from formats from the /yt/info endpoint';
 
 export const
-	// streaming params
-	itags = query('itags', 'must be a comma-separated list of 1 or 2 itags').optional().isString()
+	// dl
+	itags = query('itags', 'must be a comma-separated list of 0 to 2 itags' + itagsNote).optional().isString()
 		.customSanitizer(itags => itags.split(','))
 		.custom(itags => [0, 1, 2].includes(itags.length) && itags.every(n => parseInt(n))),
 
-	// searching params
+	// search
 	q = query('q', 'search query is required').exists().isString(),
 	type = query('type', "must be one of: 'video', 'channel', 'playlist', 'movie'")
 		.optional().isIn(['video', 'channel', 'playlist', 'movie']),
+	
+	// nextpage
 	nextPageCtx = [
-		body('key', 'must be a string' + nextPageWarning).exists().isString(),
-		body('body', 'must be an object' + nextPageWarning).exists().isObject(),
-		body('body.context', 'must be an object' + nextPageWarning).exists().isObject(),
-		body('body.continuation', 'must be a string' + nextPageWarning).exists().isString()
+		body('key', 'must be a string' + nextPageNote).exists().isString(),
+		body('body', 'must be an object' + nextPageNote).exists().isObject(),
+		body('body.context', 'must be an object' + nextPageNote).exists().isObject(),
+		body('body.continuation', 'must be a string' + nextPageNote).exists().isString()
 	],
 
 	/** @type {import('express').RequestHandler} */
