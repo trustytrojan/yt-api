@@ -49,7 +49,7 @@ app.get('/yt/dl/:idOrUrl',
 		res.setHeader('Content-Disposition', `attachment; filename="${strippedTitle}.${onlyOneAudio ? 'mp3' : 'mkv'}"`);
 
 		// start ffmpeg and begin streaming
-		const ffmpeg = util.spawnFfmpeg(formats.map(f => f.url), details, container);
+		const ffmpeg = util.spawnFfmpeg(formats.map(f => f.url), details, onlyOneAudio ? 'mp3' : undefined);
 		ffmpeg.stdout.pipe(res);
 		ffmpeg.stdout.pipe(createWriteStream(cachePath));
 
