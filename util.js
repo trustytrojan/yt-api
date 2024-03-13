@@ -43,10 +43,10 @@ export const decideFormats = (formats, { itags, only }) => {
 /**
  * Spawn `ffmpeg` as a child process to mux the audio and video, if both are provided, of a YouTube video together.
  * Inserts the video details into the output file's metadata.
- * Always outputs Matroska (`.mkv`) files.
+ * Outputs Matroska (`.mkv`) files by default.
  * @param {string[]} urls 
  * @param {ytdl.MoreVideoDetails} details 
- * @param {string} [container]
+ * @param {string} [container] 
  */
 export const spawnFfmpeg = (urls, details, container) => {
 	const inputs = [];

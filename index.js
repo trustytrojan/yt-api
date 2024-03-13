@@ -1,6 +1,6 @@
 // node
 import { argv, exit } from 'process';
-import fs from 'fs';
+import { existsSync, createWriteStream, rm } from 'fs';
 
 // npm
 import express from 'express';
@@ -10,6 +10,7 @@ import cors from 'cors';
 import * as yts from './search.js';
 import * as validate from './validate.js';
 import * as util from './util.js';
+import * as cache from './cache.js';
 
 if (!argv[2]?.length) {
 	console.error('Required args: <port>');
@@ -31,28 +32,30 @@ app.get('/yt/dl/:idOrUrl',
 		if (!formats.length)
 			return res.status(400).send('no formats found!\r\n');
 
-		// strip title of http-header-incompatible characters
-		const notAllowedInHeaders = /[^\t\x20-\x7e\x80-\xff]/g;
-		const strippedTitle = details.title.replaceAll(notAllowedInHeaders, '');
+		// check the cache, return if found
+		const cachePath = cache.getPath(formats, details);
+		if (existsSync(cachePath))
+			return res.sendFile(cachePath);
 
-		let container;
+		// delete 1-hour old files
+		cache.deleteOldFiles();
+
+		// strip title of header-incompatible characters
+		const strippedTitle = details.title.replaceAll(/[\x00-\x20\x7F-\xFF:]/g, '');
 
 		// if formats contains only one audio format, use mp3
-		if (formats.length === 1 && formats[0].hasAudio && !formats[0].hasVideo) {
-			res.setHeader('Content-Type', 'audio/mp3');
-			res.setHeader('Content-Disposition', `attachment; filename="${strippedTitle}.mp3"`);
-			container = 'mp3';
-		} else {
-			res.setHeader('Content-Type', 'video/x-matroska');
-			res.setHeader('Content-Disposition', `attachment; filename="${strippedTitle}.mkv"`);
-		}
+		const onlyOneAudio = (formats.length === 1) && formats[0].hasAudio && !formats[0].hasVideo;
+		res.setHeader('Content-Type', onlyOneAudio ? 'audio/mp3' : 'video/x-matroska');
+		res.setHeader('Content-Disposition', `attachment; filename="${strippedTitle}.${onlyOneAudio ? 'mp3' : 'mkv'}"`);
 
 		// start ffmpeg and begin streaming
 		const ffmpeg = util.spawnFfmpeg(formats.map(f => f.url), details, container);
 		ffmpeg.stdout.pipe(res);
+		ffmpeg.stdout.pipe(createWriteStream(cachePath));
 
 		// if the client closes the connection, kill ffmpeg to save resources
-		res.on('close', () => ffmpeg.kill('SIGKILL'));
+		// delete the file since it's a partial video, and the client doesn't want it anyway
+		res.on('close', () => { ffmpeg.kill('SIGKILL'); rm(cachePath); });
 	}
 );
 
