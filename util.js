@@ -46,7 +46,7 @@ export const decideFormats = (formats, { itags, only }) => {
  * Outputs Matroska (`.mkv`) files by default.
  * @param {string[]} urls 
  * @param {ytdl.MoreVideoDetails} details 
- * @param {string} [container] 
+ * @param {string?} [container] 
  */
 export const spawnFfmpeg = (urls, details, container) => {
 	const inputs = [];
@@ -75,8 +75,8 @@ export const spawnFfmpeg = (urls, details, container) => {
 	], {
 		// kill ffmpeg after the length of the media has passed.
 		// ffmpeg will finish at least twice as fast as the length of the media,
-		// so only rarely will this be used. better safe than sorry, though.
-		timeout: parseInt(details.lengthSeconds) * 1e3,
+		// so it will most likely have enough time to finish.
+		timeout: details.lengthSeconds * 1e3,
 
 		// ignore stdin, read stdout, inherit stderr
 		stdio: ['ignore', 'pipe', 'inherit'],

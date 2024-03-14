@@ -1,7 +1,7 @@
 import { readdir, stat, mkdir, rm } from 'fs/promises';
 import { existsSync } from 'fs';
 
-const MAX_AGE = 60 * 60 * 1e3; // 1 hour in milliseconds
+const MAX_AGE = 30 * 60 * 1e3; // 30 minutes in milliseconds
 const DIR = '/tmp/yt-api';
 
 if (!existsSync(DIR))
@@ -22,9 +22,8 @@ export const deleteOldFiles = async () => {
 /**
  * @param {import('@distube/ytdl-core').videoFormat[]} formats 
  * @param {import('@distube/ytdl-core').MoreVideoDetails}
- * @param {string} container 
  */
-export const getPath = (formats, { videoId }, container) => {
+export const getPath = (formats, { videoId }) => {
 	if (![1, 2].includes(formats.length))
 		throw TypeError('Expected an array containing 1 or 2 formats');
 	return `${DIR}/${videoId}-${formats.map(f => f.itag).join('-')}`;
