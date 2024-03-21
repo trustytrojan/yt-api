@@ -4,7 +4,6 @@ import { existsSync, createWriteStream } from 'fs';
 
 // npm
 import express from 'express';
-import cors from 'cors';
 
 // yt-api
 import * as yts from './search.js';
@@ -19,7 +18,6 @@ if (!argv[2]?.length) {
 
 const port = Number.parseInt(argv[2]);
 const app = express();
-app.use(cors());
 
 app.get('/yt/dl/:idOrUrl',
 	validate.itags,
