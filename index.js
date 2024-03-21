@@ -1,6 +1,6 @@
 // node
 import { argv, exit } from 'process';
-import { existsSync, createWriteStream, rm } from 'fs';
+import { existsSync, createWriteStream } from 'fs';
 
 // npm
 import express from 'express';
@@ -11,7 +11,6 @@ import * as yts from './search.js';
 import * as validate from './validate.js';
 import * as util from './util.js';
 import * as cache from './cache.js';
-import { once } from 'events';
 
 if (!argv[2]?.length) {
 	console.error('Required args: <port>');
