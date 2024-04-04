@@ -31,7 +31,7 @@ app.get('/yt/dl/:idOrUrl',
 			return res.status(400).send('no formats found!\r\n');
 
 		// strip title of header-incompatible characters
-		const strippedTitle = details.title.replaceAll(/[\x00-\x20\x7F-\xFF:]/g, '');
+		const strippedTitle = details.title.replaceAll(/:|[^\x21-\x7F]/g, '');
 
 		const onlyOneAudio = (formats.length === 1) && formats[0].hasAudio && !formats[0].hasVideo;
 
