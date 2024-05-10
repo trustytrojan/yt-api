@@ -24,7 +24,14 @@ app.get('/yt/dl/:idOrUrl',
 	validate.checkForErrors,
 	async ({ params: { idOrUrl }, query }, res) => {
 		// get video info and formats
-		let { formats, details } = await util.getInfo(idOrUrl);
+		let formats, details;
+
+		try {
+			({ formats, details } = await util.getInfo(idOrUrl));
+		} catch {
+			res.status(400).send('failed to get video info; did you mistakenly send a playlist link?');
+		}
+
 		formats = util.decideFormats(formats, query);
 
 		if (!formats.length)
