@@ -6,7 +6,7 @@ import { existsSync, createWriteStream } from 'fs';
 import express from 'express';
 
 // yt-api
-import * as yts from './search.js';
+import * as yts from './yts/yt-search.js';
 import * as validate from './validate.js';
 import * as util from './util.js';
 import * as cache from './cache.js';
