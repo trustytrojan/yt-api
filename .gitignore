@@ -2,3 +2,7 @@ node_modules
 package-lock.json
 log
 pid
+.vscode
+.npmrc
+deno.lock
+test/output

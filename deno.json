@@ -1,0 +1,5 @@
+{
+	"imports": {
+		"@trustytrojan/yt-search": "jsr:@trustytrojan/yt-search@^0.1.1"
+	}
+}

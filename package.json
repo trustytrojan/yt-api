@@ -1,12 +1,28 @@
 {
+	"type": "module",
 	"dependencies": {
-		"@distube/ytdl-core": "^4.13.3",
-		"express": "^4.18.2",
+		"@distube/ytdl-core": "^4.16.4",
+		"@trustytrojan/yt-search": "npm:@jsr/trustytrojan__yt-search@^0.1.1",
+		"express": "^4.21.2",
 		"express-validator": "^7.0.1"
 	},
-	"type": "module",
+	"devDependencies": {
+		"@types/express": "^5.0.0",
+		"prettier": "^3.5.2"
+	},
+	"prettier": {
+		"arrowParens": "avoid",
+		"trailingComma": "none",
+		"useTabs": true,
+		"printWidth": 100,
+		"tabWidth": 4,
+		"semi": true,
+		"singleQuote": true,
+		"proseWrap": "preserve"
+	},
 	"scripts": {
 		"start": "bash -c 'node . 3000 &>log & echo $! >pid'",
-		"stop": "bash -c 'kill $(<pid)'"
+		"stop": "bash -c 'kill $(<pid)'",
+		"fmt": "prettier --log-level=warn --write './**/*.ts'"
 	}
 }
