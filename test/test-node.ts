@@ -50,36 +50,62 @@ const testInfoResponse = async (resp: http.IncomingMessage) => {
 	assert(formats instanceof Array && formats.length);
 	assert(
 		typeof details === 'object' &&
-		typeof details.title === 'string' &&
-		details.title.includes('1 Second Video')
+			typeof details.title === 'string' &&
+			details.title.includes('1 Second Video')
 	);
 };
 
 const apiBaseUrl = `http://localhost:${apiPort}`;
 
 test('/yt/dl/[video_id]', () =>
-	new Promise(resolve => http.get(`${apiBaseUrl}/yt/dl/${videoId}`, r => testDlResponse(r, 'id-both').then(resolve))));
+	new Promise(resolve =>
+		http.get(`${apiBaseUrl}/yt/dl/${videoId}`, r => testDlResponse(r, 'id-both').then(resolve))
+	));
 
 test('/yt/dl/[video_id]?only=audio', () =>
-	new Promise(resolve => http.get(`${apiBaseUrl}/yt/dl/${videoId}?only=audio`, r => testDlResponse(r, 'id-audio').then(resolve))));
+	new Promise(resolve =>
+		http.get(`${apiBaseUrl}/yt/dl/${videoId}?only=audio`, r =>
+			testDlResponse(r, 'id-audio').then(resolve)
+		)
+	));
 
 test('/yt/dl/[video_id]?only=video', () =>
-	new Promise(resolve => http.get(`${apiBaseUrl}/yt/dl/${videoId}?only=video`, r => testDlResponse(r, 'id-video').then(resolve))));
+	new Promise(resolve =>
+		http.get(`${apiBaseUrl}/yt/dl/${videoId}?only=video`, r =>
+			testDlResponse(r, 'id-video').then(resolve)
+		)
+	));
 
 test('/yt/dl/[video_url]', () =>
-	new Promise(resolve => http.get(`${apiBaseUrl}/yt/dl/${videoUrl}`, r => testDlResponse(r, 'url-both').then(resolve))));
+	new Promise(resolve =>
+		http.get(`${apiBaseUrl}/yt/dl/${videoUrl}`, r =>
+			testDlResponse(r, 'url-both').then(resolve)
+		)
+	));
 
 test('/yt/dl/[video_url]?only=audio', () =>
-	new Promise(resolve => http.get(`${apiBaseUrl}/yt/dl/${videoUrl}?only=audio`, r => testDlResponse(r, 'url-audio').then(resolve))));
+	new Promise(resolve =>
+		http.get(`${apiBaseUrl}/yt/dl/${videoUrl}?only=audio`, r =>
+			testDlResponse(r, 'url-audio').then(resolve)
+		)
+	));
 
 test('/yt/dl/[video_url]?only=video', () =>
-	new Promise(resolve => http.get(`${apiBaseUrl}/yt/dl/${videoUrl}?only=video`, r => testDlResponse(r, 'url-video').then(resolve))));
+	new Promise(resolve =>
+		http.get(`${apiBaseUrl}/yt/dl/${videoUrl}?only=video`, r =>
+			testDlResponse(r, 'url-video').then(resolve)
+		)
+	));
 
 test('/yt/info/[video_id]', () =>
-	new Promise(resolve => http.get(`${apiBaseUrl}/yt/info/${videoId}`, r => testInfoResponse(r).then(resolve))));
+	new Promise(resolve =>
+		http.get(`${apiBaseUrl}/yt/info/${videoId}`, r => testInfoResponse(r).then(resolve))
+	));
 
 test('/yt/info/[video_url]', () =>
-	new Promise(resolve => http.get(`${apiBaseUrl}/yt/info/${videoUrl}`, r => testInfoResponse(r).then(resolve))));
+	new Promise(resolve =>
+		http.get(`${apiBaseUrl}/yt/info/${videoUrl}`, r => testInfoResponse(r).then(resolve))
+	));
 
 test('/yt/search', async () => {
 	const resp = await new Promise<http.IncomingMessage>(resolve =>

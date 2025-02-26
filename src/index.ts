@@ -1,16 +1,19 @@
 import fs from 'node:fs';
+import { argv, exit } from 'node:process';
+
 import express from 'express';
 import * as yts from '@trustytrojan/yt-search';
+
 import * as validate from './validate.ts';
 import * as util from './util.ts';
 import * as cache from './cache.ts';
 
-if (process.argv.length < 3) {
+if (argv.length < 3) {
 	console.error('port required');
-	process.exit(1);
+	exit(1);
 }
 
-const port = parseInt(process.argv[2]);
+const port = parseInt(argv[2]);
 const app = express();
 
 app.get('/yt/dl/:idOrUrl', validate.itags, validate.errorCheck, async (req, res) => {

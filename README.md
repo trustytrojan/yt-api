@@ -1,6 +1,6 @@
 # yt-api
 
-An HTTP API that provides YouTube search results and audio/video downloads.
+An HTTP API that provides YouTube search results and audio/video downloads. Built on [Express](https://expressjs.com/), but I'm looking into porting this to a lighter framework like [Hono](https://hono.dev/).
 
 Currently can run on both Node.js and Deno runtimes, with tests available for both.
 
